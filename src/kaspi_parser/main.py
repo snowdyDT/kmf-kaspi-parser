@@ -1,7 +1,10 @@
 import uvicorn
 from fastapi import FastAPI
 
+from src.kaspi_parser import routers
+
 app = FastAPI()
+app.include_router(routers.router)
 
 
 @app.get("/")
