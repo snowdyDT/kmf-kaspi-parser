@@ -1,6 +1,9 @@
 import base64
+import io
 import re
 from datetime import datetime
+
+import fitz
 
 
 def encode_file(file_path: str) -> str:
@@ -17,7 +20,7 @@ def encode_file(file_path: str) -> str:
         return base64.b64encode(file.read()).decode("utf-8")
 
 
-class BankStatement:
+class FileProcessor:
     class Patterns:
         fio_pattern = r'по \d{2}\.\d{2}\.\d{2} (.*?) Номер счета:|бойынша (.*?) Шот нөмірі:'
         card_number_pattern = r'Номер карты: (\*\d{4})|Карта нөмірі: (\*\d{4})'
@@ -25,15 +28,16 @@ class BankStatement:
         currency_pattern = r'Валюта счета: (\w+)|Шот валютасы: (\w+)'
         date_pattern = (r'за период с (\d{2}\.\d{2}\.\d{2}) по (\d{2}\.\d{2}\.\d{2})'
                         r'|(\d{2}\.\d{2}\.\d{2})ж\.? бастап (\d{2}\.\d{2}\.\d{2})ж\.? дейінгі кезеңге')
-        
-    def parse_statement(self, path):
+
+    def parse_statement(self, file_bytes):
         result = None
         date_format = '%d.%m.%y'
 
-        with open(path, 'rb') as file:
-            text = self.get_text(path=path)
+        with io.BytesIO(file_bytes) as file:
+            text = self.get_text(file=file)
             fio = next(
-                (match[0] or match[1] for match in re.findall(self.Patterns.fio_pattern, text, re.IGNORECASE) if any(match)),
+                (match[0] or match[1] for match in re.findall(self.Patterns.fio_pattern, text, re.IGNORECASE) if
+                 any(match)),
                 None)
             parts = fio.split()
             filtered_parts = [part for i, part in enumerate(parts) if i not in [1, 2, 3]]
@@ -44,14 +48,17 @@ class BankStatement:
                  any(match)), None)
 
             iban = next(
-                (match[0] or match[1] for match in re.findall(self.Patterns.iban_pattern, text, re.IGNORECASE) if any(match)),
+                (match[0] or match[1] for match in re.findall(self.Patterns.iban_pattern, text, re.IGNORECASE) if
+                 any(match)),
                 None)
 
-            currency = next((match[0] or match[1] for match in re.findall(self.Patterns.currency_pattern, text, re.IGNORECASE) if
-                             any(match)), None)
+            currency = next(
+                (match[0] or match[1] for match in re.findall(self.Patterns.currency_pattern, text, re.IGNORECASE) if
+                 any(match)), None)
 
-            date_match = next((match for match in re.findall(self.Patterns.date_pattern, text, re.IGNORECASE) if any(match)),
-                              (None, None, None, None))
+            date_match = next(
+                (match for match in re.findall(self.Patterns.date_pattern, text, re.IGNORECASE) if any(match)),
+                (None, None, None, None))
 
             date_from, date_until = date_match[0] or date_match[2], date_match[1] or date_match[3]
             card_balance_date_from = self.get_number(
@@ -106,8 +113,13 @@ class BankStatement:
         return result
 
     @staticmethod
-    def get_text(path: str):
-        return ''
+    def get_text(file: bytes):
+        with fitz.open(file) as file:
+            text = ""
+            for page_num in range(len(file)):
+                page = file.load_page(page_num)  # загружаем страницу
+                text += page.extract_text()
+        return text
 
     @staticmethod
     def get_number(value, parameter_type=None):
