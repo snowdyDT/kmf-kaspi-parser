@@ -11,6 +11,8 @@ Base = declarative_base()
 
 class PDFRequest(BaseModel):
     base64_pdf: str
+    to_excel: bool = False
+    dry_run: bool = False
 
 
 class BankStatement(Base):

@@ -1,9 +1,11 @@
 import base64
 import io
+import os
 import re
 from datetime import datetime
 
 import fitz
+import pandas as pd
 
 
 def encode_file(file_path: str) -> str:
@@ -20,10 +22,13 @@ def encode_file(file_path: str) -> str:
         return base64.b64encode(file.read()).decode("utf-8")
 
 
-class FileProcessor:
+class BankStatement:
     """
     A class to process financial statements and extract relevant information.
     """
+
+    def __init__(self) -> None:
+        pass
 
     class Patterns:
         """
@@ -58,8 +63,8 @@ class FileProcessor:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                        self.Patterns.fio_pattern, text, re.IGNORECASE
-                    )
+                    self.Patterns.fio_pattern, text, re.IGNORECASE
+                )
                     if any(match)
                 ),
                 None,
@@ -74,8 +79,8 @@ class FileProcessor:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                        self.Patterns.card_number_pattern, text, re.IGNORECASE
-                    )
+                    self.Patterns.card_number_pattern, text, re.IGNORECASE
+                )
                     if any(match)
                 ),
                 None,
@@ -85,8 +90,8 @@ class FileProcessor:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                        self.Patterns.iban_pattern, text, re.IGNORECASE
-                    )
+                    self.Patterns.iban_pattern, text, re.IGNORECASE
+                )
                     if any(match)
                 ),
                 None,
@@ -96,8 +101,8 @@ class FileProcessor:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                        self.Patterns.currency_pattern, text, re.IGNORECASE
-                    )
+                    self.Patterns.currency_pattern, text, re.IGNORECASE
+                )
                     if any(match)
                 ),
                 None,
@@ -107,8 +112,8 @@ class FileProcessor:
                 (
                     match
                     for match in re.findall(
-                        self.Patterns.date_pattern, text, re.IGNORECASE
-                    )
+                    self.Patterns.date_pattern, text, re.IGNORECASE
+                )
                     if any(match)
                 ),
                 (None, None, None, None),
@@ -319,3 +324,31 @@ class FileProcessor:
             for s in statement
         ]
         return details
+
+
+class FileProcessor:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def to_excel(statement_data: dict, file_path: str) -> None:
+        columns = [
+            "FROM_DATE", "TO_DATE", "STATEMENT_LANGUAGE", "FULL_NAME",
+            "FINANSIAL_INSTITUTION", "AMOUNT", "DETAILS", "OPERATION_DATE",
+            "TRANSACTION_TYPE", "INSERT_DATE", "CARD_NUMBER", "ST_CREATION_DATE",
+            "ST_MODIFIED_DATE", "ST_SUBJECT", "ST_AUTHOR", "ST_TITLE", "ST_PRODUCER"
+        ]
+
+        data = []
+        for detail in statement_data["Details"]:
+            row = [
+                statement_data["fromDate"], statement_data["toDate"], "RUS",  # Assuming "RUS" for Russian language
+                statement_data["FIO"], statement_data["financialInstitutionName"],
+                detail["amount"], detail["detail"], detail["operationDate"],
+                detail["transactionType"], None,  # INSERT_DATE would be set automatically by DB
+                statement_data["cardNumber"], None, None, None, None, None, None
+            ]
+            data.append(row)
+        df = pd.DataFrame(data, columns=columns)
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        df.to_excel(file_path, index=False)

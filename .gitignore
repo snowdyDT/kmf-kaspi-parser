@@ -2,6 +2,7 @@ tests/assets/files
 .env.*
 *.db
 .idea/
+output/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
