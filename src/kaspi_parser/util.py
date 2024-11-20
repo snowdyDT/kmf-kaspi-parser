@@ -21,7 +21,15 @@ def encode_file(file_path: str) -> str:
 
 
 class FileProcessor:
+    """
+    A class to process financial statements and extract relevant information.
+    """
+
     class Patterns:
+        """
+        A nested class to store regex patterns for extracting data from financial statements.
+        """
+
         fio_pattern = (
             r"по \d{2}\.\d{2}\.\d{2} (.*?) Номер счета:|бойынша (.*?) Шот нөмірі:"
         )
@@ -34,6 +42,16 @@ class FileProcessor:
         )
 
     def parse_statement(self, file_bytes, date_format="%d.%m.%y"):
+        """
+        Parse a financial statement from a byte stream.
+
+        Args:
+            file_bytes (bytes): The byte content of the financial statement file.
+            date_format (str): The date format used in the statement.
+
+        Returns:
+            dict: A dictionary containing parsed information from the statement.
+        """
         with io.BytesIO(file_bytes) as stream:
             text = self.get_text(stream=stream)
             fio = next(
@@ -168,12 +186,31 @@ class FileProcessor:
 
     @staticmethod
     def get_text(stream):
+        """
+        Extract text from a PDF file stream.
+
+        Args:
+            stream (io.BytesIO): The byte stream of the PDF file.
+
+        Returns:
+            str: The extracted text from the PDF file.
+        """
         with fitz.open(stream=stream, filetype="pdf") as pdf:
             text = "\n".join([page.get_text() for page in pdf])
         return " ".join(text.split())
 
     @staticmethod
     def get_number(value, parameter_type=None):
+        """
+        Convert a string value to a floating-point number.
+
+        Args:
+            value (str): The string representation of the number.
+            parameter_type (str, optional): The type of parameter being converted. Defaults to None.
+
+        Returns:
+            float: The converted number.
+        """
         if value:
             value_ = value.partition("₸")[0]
             value_ = "".join(value_.replace(",", ".").split())
@@ -187,10 +224,29 @@ class FileProcessor:
 
     @staticmethod
     def get_date(value, date_format):
+        """
+        Convert a string date to a datetime object.
+
+        Args:
+            value (str): The string representation of the date.
+            date_format (str): The format of the date string.
+
+        Returns:
+            datetime: The converted datetime object.
+        """
         return datetime.strptime(value, date_format)
 
     @staticmethod
     def replace_statement_extra_text(bank_statement_text: str):
+        """
+        Remove extra text from the bank statement.
+
+        Args:
+            bank_statement_text (str): The raw text of the bank statement.
+
+        Returns:
+            str: The cleaned text of the bank statement.
+        """
         return (
             bank_statement_text.replace(
                 "АО «Kaspi Bank», БИК CASPKZKA, www.kaspi.kz", ""
@@ -206,6 +262,15 @@ class FileProcessor:
         )
 
     def get_statements(self, bank_statement_text: str) -> list:
+        """
+        Extract individual statements from the bank statement text.
+
+        Args:
+            bank_statement_text (str): The raw text of the bank statement.
+
+        Returns:
+            list: A list of tuples containing the date, amount, transaction type, and description.
+        """
         bank_statement_text = self.replace_statement_extra_text(bank_statement_text)
         pattern = (
             r"(\d{2}\.\d{2}\.\d{2})\s+"  # Дата в формате dd.mm.yy
@@ -218,6 +283,22 @@ class FileProcessor:
         return [[element.strip() for element in match] for match in matches]
 
     def get_details(self, text: str, date_format: str = "%d.%m.%y") -> list[dict]:
+        """
+        Extracts and parses the transaction details from the provided bank statement text.
+
+        Args:
+            text (str): The raw text of the bank statement.
+            date_format (str, optional): The format of the dates in the statement. Defaults to "%d.%m.%y".
+
+        Returns:
+            list[dict]: A list of dictionaries where each dictionary represents a transaction.
+                        Each dictionary contains the following keys:
+                        - "operationDate" (datetime): The date of the transaction.
+                        - "amount" (float): The amount of the transaction.
+                        - "transactionType" (str): The type of transaction (e.g., "Transfer", "Purchase").
+                        - "detail" (str): Additional details about the transaction.
+
+        """
         statement = self.get_statements(text)
         statement = [
             (
