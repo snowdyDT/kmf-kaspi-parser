@@ -3,10 +3,10 @@ import io
 import os
 import re
 from datetime import datetime
-
 import fitz
 import pandas as pd
-
+from src.kaspi_parser import models
+from contextlib import contextmanager
 
 def encode_file(file_path: str) -> str:
     """
@@ -379,14 +379,14 @@ class FileProcessor:
             row = [
                 statement_data["fromDate"],
                 statement_data["toDate"],
-                "RUS",  # Assuming "RUS" for Russian language
+                "RUS",
                 statement_data["FIO"],
                 statement_data["financialInstitutionName"],
                 detail["amount"],
                 detail["detail"],
                 detail["operationDate"],
                 detail["transactionType"],
-                None,  # INSERT_DATE would be set automatically by DB
+                None,
                 statement_data["cardNumber"],
                 None,
                 None,
@@ -399,3 +399,50 @@ class FileProcessor:
         df = pd.DataFrame(data, columns=columns)
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         df.to_excel(file_path, index=False)
+
+
+class Record:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    @contextmanager
+    def get_db():
+        db = models.SessionLocal()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    def insert_record(self, statement_data: dict) -> None:
+        bank_statement = models.BankStatement(
+            financial_institution_name=statement_data["financialInstitutionName"],
+            full_name=statement_data["FIO"],
+            card_number=statement_data["cardNumber"],
+            iban=statement_data["IBAN"],
+            currency=statement_data["currency"],
+            from_date=datetime.strptime(statement_data["fromDate"], "%d.%m.%y"),
+            to_date=datetime.strptime(statement_data["toDate"], "%d.%m.%y"),
+            card_balance_date_from=statement_data["cardBalanceDateFrom"],
+            card_balance_date_until=statement_data["cardBalanceDateUntil"],
+            replenishments=statement_data["Replenishments"],
+            transfers=statement_data["Transfers"],
+            purchases=statement_data["Purchases"],
+            withdrawals=statement_data["Withdrawals"],
+            others=statement_data["Others"]
+        )
+        with self.get_db() as db:
+            db.add(bank_statement)
+            db.commit()
+            db.refresh(bank_statement)
+            for detail in statement_data["Details"]:
+                transaction_detail = models.TransactionDetail(
+                    operation_date=detail["operationDate"],
+                    amount=detail["amount"],
+                    transaction_type=detail["transactionType"],
+                    detail=detail["detail"],
+                    bank_statement_id=bank_statement.id
+                )
+
+                db.add(transaction_detail)
+            db.commit()
