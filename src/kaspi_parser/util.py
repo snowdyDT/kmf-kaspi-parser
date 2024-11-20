@@ -29,12 +29,9 @@ class FileProcessor:
         date_pattern = (r'за период с (\d{2}\.\d{2}\.\d{2}) по (\d{2}\.\d{2}\.\d{2})'
                         r'|(\d{2}\.\d{2}\.\d{2})ж\.? бастап (\d{2}\.\d{2}\.\d{2})ж\.? дейінгі кезеңге')
 
-    def parse_statement(self, file_bytes):
-        result = None
-        date_format = '%d.%m.%y'
-
-        with io.BytesIO(file_bytes) as file:
-            text = self.get_text(file=file)
+    def parse_statement(self, file_bytes, date_format='%d.%m.%y'):
+        with io.BytesIO(file_bytes) as stream:
+            text = self.get_text(stream=stream)
             fio = next(
                 (match[0] or match[1] for match in re.findall(self.Patterns.fio_pattern, text, re.IGNORECASE) if
                  any(match)),
@@ -84,24 +81,20 @@ class FileProcessor:
             others = self.get_number(
                 next(iter(re.findall(r'(?:Разное|ртүрлі) (.*?) ₸', text)), None))
 
-            statement = self.get_statements(text)
-            statement = [
-                (self.get_date(date, date_format), self.get_number(amount), operation, detail)
-                for date, amount, operation, detail in statement
-            ]
-
             date_from, date_until = \
                 datetime.strptime(date_from, date_format), datetime.strptime(date_until,
                                                                              date_format)
 
+            details = self.get_details(text=text, date_format=date_format)
+
             result = {
-                'Bank': 'АО «Kaspi Bank»',
+                'financialInstitutionName': 'АО «Kaspi Bank»',
                 'FIO': fio,
                 'cardNumber': card_number,
                 'IBAN': iban,
                 'currency': currency,
-                'dateFrom': date_from.strftime(date_format),
-                'dateUntil': date_until.strftime(date_format),
+                'fromDate': date_from.strftime(date_format),
+                'toDate': date_until.strftime(date_format),
                 'cardBalanceDateFrom': card_balance_date_from,
                 'cardBalanceDateUntil': card_balance_date_until,
                 'Replenishments': replenishments,
@@ -109,17 +102,15 @@ class FileProcessor:
                 'Purchases': purchases,
                 'Withdrawals': withdrawals,
                 'Others': others,
+                'Details': details,
             }
         return result
 
     @staticmethod
-    def get_text(file: bytes):
-        with fitz.open(file) as file:
-            text = ""
-            for page_num in range(len(file)):
-                page = file.load_page(page_num)  # загружаем страницу
-                text += page.extract_text()
-        return text
+    def get_text(stream):
+        with fitz.open(stream=stream, filetype='pdf') as pdf:
+            text = '\n'.join([page.get_text() for page in pdf])
+        return ' '.join(text.split())
 
     @staticmethod
     def get_number(value, parameter_type=None):
@@ -154,3 +145,20 @@ class FileProcessor:
         )
         matches = re.findall(pattern, bank_statement_text)
         return [[element.strip() for element in match] for match in matches]
+
+    def get_details(self, text: str, date_format: str = '%d.%m.%y') -> list[dict]:
+        statement = self.get_statements(text)
+        statement = [
+            (self.get_date(date, date_format), self.get_number(amount), operation, detail)
+            for date, amount, operation, detail in statement
+        ]
+        details = [
+            {
+                'operationDate': s[0],
+                'amount': s[1],
+                'transactionType': s[2],
+                'detail': s[3],
+            }
+            for s in statement
+        ]
+        return details
