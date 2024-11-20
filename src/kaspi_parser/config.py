@@ -10,7 +10,7 @@ load_dotenv(env_file_)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
 logging.basicConfig(
-    filename='app.log',
+    filename="app.log",
     level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(levelname)s - %(message)s",
 )

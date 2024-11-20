@@ -406,12 +406,32 @@ class FileProcessor:
 
 
 class Record:
+    """
+    A class to handle operations related to inserting bank statement data
+    and transaction details into the database.
+    """
+
     def __init__(self):
+        """
+        Initializes a Record object. Currently, it does not have any attributes,
+        but it can be extended with additional functionality in the future.
+        """
         pass
 
     @staticmethod
     @contextmanager
     def get_db():
+        """
+        A context manager to handle the database session.
+
+        This method is used to obtain a session from the session factory
+        (`models.SessionLocal`), and ensures that the session is properly
+        closed after use, whether an exception occurs.
+
+        Yields:
+            db: A database session object, which can be used to interact with
+                the database inside the 'with' block.
+        """
         db = models.SessionLocal()
         try:
             yield db
@@ -419,6 +439,35 @@ class Record:
             db.close()
 
     def insert_record(self, statement_data: dict) -> None:
+        """
+        Inserts a new bank statement and its associated transaction details
+        into the database.
+
+        This method takes a dictionary `statement_data` containing bank
+        statement and transaction details, processes the data, and stores it
+        in the appropriate database tables: `BankStatement` and `TransactionDetail`.
+
+        Args:
+            statement_data (dict): A dictionary containing the bank statement
+                                    information and transaction details. The
+                                    dictionary must contain keys such as
+                                    "financialInstitutionName", "FIO",
+                                    "cardNumber", etc.
+
+        Returns:
+            None: This method does not return any value, it only performs
+                  database operations.
+
+        Logs:
+            The method logs progress and errors. If the operation is successful,
+            it logs the insertion of both the `BankStatement` and `TransactionDetail`
+            records, including the generated ID for each. If an error occurs during
+            the process, an error message is logged.
+
+        Exceptions:
+            Any exceptions that occur during the database insertions are caught
+            and logged as errors.
+        """
         try:
             bank_statement = models.BankStatement(
                 financial_institution_name=statement_data["financialInstitutionName"],
@@ -434,7 +483,7 @@ class Record:
                 transfers=statement_data["Transfers"],
                 purchases=statement_data["Purchases"],
                 withdrawals=statement_data["Withdrawals"],
-                others=statement_data["Others"]
+                others=statement_data["Others"],
             )
             with self.get_db() as db:
                 config.logging.info("Adding bank_statement to DB")
@@ -449,11 +498,13 @@ class Record:
                         amount=detail["amount"],
                         transaction_type=detail["transactionType"],
                         detail=detail["detail"],
-                        bank_statement_id=bank_statement.id
+                        bank_statement_id=bank_statement.id,
                     )
 
                     db.add(transaction_detail)
                 db.commit()
-                config.logging.info(f"TransactionDetails added for bank_statement_id: {bank_statement.id}")
+                config.logging.info(
+                    f"TransactionDetails added for bank_statement_id: {bank_statement.id}"
+                )
         except Exception as error:
-            config.logging.error(f'An error occurred while inserting record: {error}')
+            config.logging.error(f"An error occurred while inserting record: {error}")
