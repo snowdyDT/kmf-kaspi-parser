@@ -1,12 +1,16 @@
 import base64
 import io
+from src.kaspi_parser import config
 import os
 import re
+from contextlib import contextmanager
 from datetime import datetime
+
 import fitz
 import pandas as pd
+
 from src.kaspi_parser import models
-from contextlib import contextmanager
+
 
 def encode_file(file_path: str) -> str:
     """
@@ -415,34 +419,41 @@ class Record:
             db.close()
 
     def insert_record(self, statement_data: dict) -> None:
-        bank_statement = models.BankStatement(
-            financial_institution_name=statement_data["financialInstitutionName"],
-            full_name=statement_data["FIO"],
-            card_number=statement_data["cardNumber"],
-            iban=statement_data["IBAN"],
-            currency=statement_data["currency"],
-            from_date=datetime.strptime(statement_data["fromDate"], "%d.%m.%y"),
-            to_date=datetime.strptime(statement_data["toDate"], "%d.%m.%y"),
-            card_balance_date_from=statement_data["cardBalanceDateFrom"],
-            card_balance_date_until=statement_data["cardBalanceDateUntil"],
-            replenishments=statement_data["Replenishments"],
-            transfers=statement_data["Transfers"],
-            purchases=statement_data["Purchases"],
-            withdrawals=statement_data["Withdrawals"],
-            others=statement_data["Others"]
-        )
-        with self.get_db() as db:
-            db.add(bank_statement)
-            db.commit()
-            db.refresh(bank_statement)
-            for detail in statement_data["Details"]:
-                transaction_detail = models.TransactionDetail(
-                    operation_date=detail["operationDate"],
-                    amount=detail["amount"],
-                    transaction_type=detail["transactionType"],
-                    detail=detail["detail"],
-                    bank_statement_id=bank_statement.id
-                )
+        try:
+            bank_statement = models.BankStatement(
+                financial_institution_name=statement_data["financialInstitutionName"],
+                full_name=statement_data["FIO"],
+                card_number=statement_data["cardNumber"],
+                iban=statement_data["IBAN"],
+                currency=statement_data["currency"],
+                from_date=datetime.strptime(statement_data["fromDate"], "%d.%m.%y"),
+                to_date=datetime.strptime(statement_data["toDate"], "%d.%m.%y"),
+                card_balance_date_from=statement_data["cardBalanceDateFrom"],
+                card_balance_date_until=statement_data["cardBalanceDateUntil"],
+                replenishments=statement_data["Replenishments"],
+                transfers=statement_data["Transfers"],
+                purchases=statement_data["Purchases"],
+                withdrawals=statement_data["Withdrawals"],
+                others=statement_data["Others"]
+            )
+            with self.get_db() as db:
+                config.logging.info("Adding bank_statement to DB")
+                db.add(bank_statement)
+                db.commit()
+                db.refresh(bank_statement)
+                config.logging.info(f"BankStatement added with id: {bank_statement.id}")
 
-                db.add(transaction_detail)
-            db.commit()
+                for detail in statement_data["Details"]:
+                    transaction_detail = models.TransactionDetail(
+                        operation_date=detail["operationDate"],
+                        amount=detail["amount"],
+                        transaction_type=detail["transactionType"],
+                        detail=detail["detail"],
+                        bank_statement_id=bank_statement.id
+                    )
+
+                    db.add(transaction_detail)
+                db.commit()
+                config.logging.info(f"TransactionDetails added for bank_statement_id: {bank_statement.id}")
+        except Exception as error:
+            config.logging.error(f'An error occurred while inserting record: {error}')
