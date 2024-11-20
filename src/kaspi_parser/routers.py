@@ -19,7 +19,7 @@ async def parse_statement(request: models.PDFRequest):
             "success": success,
             "msg": None,
             "msgType": None,
-            "data": statement_data
+            "data": statement_data,
         }
     except Exception as error:
         raise HTTPException(status_code=400, detail=f"Error parsing PDF: {error}")
