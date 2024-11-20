@@ -63,8 +63,8 @@ class BankStatement:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                    self.Patterns.fio_pattern, text, re.IGNORECASE
-                )
+                        self.Patterns.fio_pattern, text, re.IGNORECASE
+                    )
                     if any(match)
                 ),
                 None,
@@ -79,8 +79,8 @@ class BankStatement:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                    self.Patterns.card_number_pattern, text, re.IGNORECASE
-                )
+                        self.Patterns.card_number_pattern, text, re.IGNORECASE
+                    )
                     if any(match)
                 ),
                 None,
@@ -90,8 +90,8 @@ class BankStatement:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                    self.Patterns.iban_pattern, text, re.IGNORECASE
-                )
+                        self.Patterns.iban_pattern, text, re.IGNORECASE
+                    )
                     if any(match)
                 ),
                 None,
@@ -101,8 +101,8 @@ class BankStatement:
                 (
                     match[0] or match[1]
                     for match in re.findall(
-                    self.Patterns.currency_pattern, text, re.IGNORECASE
-                )
+                        self.Patterns.currency_pattern, text, re.IGNORECASE
+                    )
                     if any(match)
                 ),
                 None,
@@ -112,8 +112,8 @@ class BankStatement:
                 (
                     match
                     for match in re.findall(
-                    self.Patterns.date_pattern, text, re.IGNORECASE
-                )
+                        self.Patterns.date_pattern, text, re.IGNORECASE
+                    )
                     if any(match)
                 ),
                 (None, None, None, None),
@@ -327,26 +327,73 @@ class BankStatement:
 
 
 class FileProcessor:
-    def __init__(self):
+    """
+    A class responsible for processing data and converting it into an Excel format.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes a new instance of the FileProcessor class.
+        This class currently does not maintain state and serves as a utility for processing data into Excel format.
+        """
         pass
 
     @staticmethod
     def to_excel(statement_data: dict, file_path: str) -> None:
+        """
+        Converts the provided statement data into an Excel file and saves it to the specified file path.
+
+        Args:
+            statement_data (dict): A dictionary containing parsed statement data, including transaction details and metadata.
+            file_path (str): The path where the generated Excel file will be saved.
+
+        Raises:
+            FileNotFoundError: If the directory specified in file_path does not exist and cannot be created.
+            PermissionError: If the program lacks permission to create the file or directory.
+
+        This function assumes that 'statement_data' includes the keys 'fromDate', 'toDate', 'FIO', 'financialInstitutionName',
+        'cardNumber', and 'Details'. Each entry in 'Details' should include 'amount', 'detail', 'operationDate', and 'transactionType'.
+        """
         columns = [
-            "FROM_DATE", "TO_DATE", "STATEMENT_LANGUAGE", "FULL_NAME",
-            "FINANSIAL_INSTITUTION", "AMOUNT", "DETAILS", "OPERATION_DATE",
-            "TRANSACTION_TYPE", "INSERT_DATE", "CARD_NUMBER", "ST_CREATION_DATE",
-            "ST_MODIFIED_DATE", "ST_SUBJECT", "ST_AUTHOR", "ST_TITLE", "ST_PRODUCER"
+            "FROM_DATE",
+            "TO_DATE",
+            "STATEMENT_LANGUAGE",
+            "FULL_NAME",
+            "FINANSIAL_INSTITUTION",
+            "AMOUNT",
+            "DETAILS",
+            "OPERATION_DATE",
+            "TRANSACTION_TYPE",
+            "INSERT_DATE",
+            "CARD_NUMBER",
+            "ST_CREATION_DATE",
+            "ST_MODIFIED_DATE",
+            "ST_SUBJECT",
+            "ST_AUTHOR",
+            "ST_TITLE",
+            "ST_PRODUCER",
         ]
 
         data = []
         for detail in statement_data["Details"]:
             row = [
-                statement_data["fromDate"], statement_data["toDate"], "RUS",  # Assuming "RUS" for Russian language
-                statement_data["FIO"], statement_data["financialInstitutionName"],
-                detail["amount"], detail["detail"], detail["operationDate"],
-                detail["transactionType"], None,  # INSERT_DATE would be set automatically by DB
-                statement_data["cardNumber"], None, None, None, None, None, None
+                statement_data["fromDate"],
+                statement_data["toDate"],
+                "RUS",  # Assuming "RUS" for Russian language
+                statement_data["FIO"],
+                statement_data["financialInstitutionName"],
+                detail["amount"],
+                detail["detail"],
+                detail["operationDate"],
+                detail["transactionType"],
+                None,  # INSERT_DATE would be set automatically by DB
+                statement_data["cardNumber"],
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
             ]
             data.append(row)
         df = pd.DataFrame(data, columns=columns)

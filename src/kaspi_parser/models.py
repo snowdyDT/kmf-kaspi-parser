@@ -16,7 +16,7 @@ class PDFRequest(BaseModel):
 
 
 class BankStatement(Base):
-    __tablename__ = 'bank_statements'
+    __tablename__ = "bank_statements"
 
     id = Column(Integer, primary_key=True, index=True)
     financial_institution_name = Column(String(256), nullable=False)
@@ -38,14 +38,14 @@ class BankStatement(Base):
 
 
 class TransactionDetail(Base):
-    __tablename__ = 'transaction_details'
+    __tablename__ = "transaction_details"
 
     id = Column(Integer, primary_key=True, index=True)
     operation_date = Column(DateTime, nullable=False)
     amount = Column(Float, nullable=False)
     transaction_type = Column(String(50), nullable=False)
     detail = Column(String(256), nullable=True)
-    bank_statement_id = Column(Integer, ForeignKey('bank_statements.id'))
+    bank_statement_id = Column(Integer, ForeignKey("bank_statements.id"))
 
     bank_statement = relationship("BankStatement", back_populates="details")
 
