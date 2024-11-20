@@ -6,3 +6,9 @@ Service for parsing Kaspi Bank statements.
 
 ```sh
 pdm install
+```
+
+## Start
+```sh
+main.py
+```
